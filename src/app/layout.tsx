@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import { ACCENT_COOKIE, parseAccent } from "@/lib/theme/accents";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,10 +20,14 @@ export const metadata: Metadata = {
   description: "A simple, focused CRM for small sales teams.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Read server-side so the chosen accent is in the first paint.
+  const accent = parseAccent((await cookies()).get(ACCENT_COOKIE)?.value);
+
   return (
     <html
       lang="en"
+      data-accent={accent}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">

@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { LoginForm } from "@/components/crm/auth/login-form";
 import { signupEnabled } from "@/lib/auth/signup-gate";
+import { BrandMark } from "@/components/crm/layout/brand-mark";
 
 // Read per request (SIGNUP_ENABLED), and it depends on the query string anyway.
 export const dynamic = "force-dynamic";
@@ -15,10 +16,11 @@ export default async function LoginPage({
   const { redirectTo, signedUp, email } = await searchParams;
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-muted/30 px-4">
-      <Card className="w-full max-w-sm">
+    <div className="bg-brand-wash flex min-h-screen w-full flex-col items-center justify-center gap-6 bg-background px-4">
+      <BrandMark orgName="Summit CRM" className="text-lg" />
+      <Card className="w-full max-w-sm shadow-xl shadow-primary/5">
         <CardHeader>
-          <CardTitle className="text-xl">Summit CRM</CardTitle>
+          <CardTitle className="text-xl">Welcome back</CardTitle>
           <CardDescription>Sign in to manage your leads and pipeline.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

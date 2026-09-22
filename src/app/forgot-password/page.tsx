@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ForgotPasswordForm } from "@/components/crm/auth/forgot-password-form";
+import { BrandMark } from "@/components/crm/layout/brand-mark";
 
 export default async function ForgotPasswordPage({
   searchParams,
@@ -11,8 +12,9 @@ export default async function ForgotPasswordPage({
   const { error } = await searchParams;
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-muted/30 px-4">
-      <Card className="w-full max-w-sm">
+    <div className="bg-brand-wash flex min-h-screen w-full flex-col items-center justify-center gap-6 bg-background px-4">
+      <BrandMark orgName="Summit CRM" className="text-lg" />
+      <Card className="w-full max-w-sm shadow-xl shadow-primary/5">
         <CardHeader>
           <CardTitle className="text-xl">Reset your password</CardTitle>
           <CardDescription>Enter your email and we&apos;ll send you a link to choose a new one.</CardDescription>

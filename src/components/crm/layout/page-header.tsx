@@ -25,7 +25,7 @@ export function PageHeader({
     <div className={cn("flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between", className)}>
       <div className="flex items-start gap-3">
         {Icon && (
-          <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-primary to-[oklch(0.62_0.16_calc(var(--brand-h)_+_50))] text-primary-foreground shadow-md shadow-primary/25">
             <Icon className="size-4.5" />
           </span>
         )}

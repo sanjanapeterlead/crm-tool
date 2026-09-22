@@ -54,14 +54,18 @@ export function SidebarNav({ role }: { role: OrgRole }) {
           <Link
             key={item.href}
             href={item.href}
+            aria-current={active ? "page" : undefined}
             className={cn(
-              "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+              "group relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
               active
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
             )}
           >
-            <Icon className="size-4" />
+            {active && (
+              <span aria-hidden className="absolute inset-y-1.5 left-0 w-1 rounded-r-full bg-sidebar-primary" />
+            )}
+            <Icon className={cn("size-4 transition-transform group-hover:scale-110", active && "text-sidebar-primary")} />
             {item.label}
           </Link>
         );

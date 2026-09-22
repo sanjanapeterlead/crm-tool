@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { MetricCard } from "@/components/crm/dashboard/metric-card";
 import { PipelineOverview } from "@/components/crm/dashboard/pipeline-overview";
+import { PersonAvatar } from "@/components/crm/layout/person-avatar";
 import { RecentActivity } from "@/components/crm/dashboard/recent-activity";
 import type { OwnerDashboard } from "@/lib/services/dashboard";
 import type { Activity, Lead, LeadStatus, Profile } from "@/lib/types/domain";
@@ -41,9 +42,10 @@ export function OwnerDashboardView({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">{orgName}</h1>
-        <p className="text-sm text-muted-foreground">
+      <div className="bg-brand-wash relative overflow-hidden rounded-2xl border bg-card px-5 py-6 md:px-6">
+        <p className="text-xs font-medium tracking-wide text-primary uppercase">Dashboard</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">{orgName}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           {needsAttention ? "Here's what needs your attention." : "Nothing is being neglected right now."}
         </p>
       </div>
@@ -52,11 +54,11 @@ export function OwnerDashboardView({
         <h2 id="attention-heading" className="sr-only">
           Needs attention
         </h2>
-        <Link href="/leads?uncontacted=1" className="block rounded-xl focus-visible:ring-2 focus-visible:ring-ring">
-          <MetricCard label="Leads nobody has contacted" value={data.uncontacted} icon={UserX} tone={data.uncontacted > 0 ? "warning" : "default"} />
+        <Link href="/leads?uncontacted=1" className="block rounded-xl transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring">
+          <MetricCard label="Leads nobody has contacted" value={data.uncontacted} icon={UserX} tone={data.uncontacted > 0 ? "warning" : "success"} />
         </Link>
-        <Link href="/followups?view=overdue" className="block rounded-xl focus-visible:ring-2 focus-visible:ring-ring">
-          <MetricCard label="Overdue follow-ups" value={data.overdueFollowups} icon={AlertTriangle} tone={data.overdueFollowups > 0 ? "warning" : "default"} />
+        <Link href="/followups?view=overdue" className="block rounded-xl transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring">
+          <MetricCard label="Overdue follow-ups" value={data.overdueFollowups} icon={AlertTriangle} tone={data.overdueFollowups > 0 ? "warning" : "success"} />
         </Link>
       </section>
 
@@ -64,7 +66,7 @@ export function OwnerDashboardView({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Zap className="size-4" aria-hidden /> Waiting the longest for a first contact
+              <Zap className="size-4 text-amber-500" aria-hidden /> Waiting the longest for a first contact
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -96,12 +98,12 @@ export function OwnerDashboardView({
         <h2 id="numbers-heading" className="sr-only">
           This week
         </h2>
-        <MetricCard label="New leads today" value={data.newLeadsToday} icon={Users} />
-        <MetricCard label="New leads this week" value={data.newLeadsThisWeek} icon={Users} />
-        <MetricCard label="Meetings scheduled" value={data.meetingsUpcoming} icon={CalendarClock} />
-        <MetricCard label="Meetings completed (week)" value={data.meetingsCompletedThisWeek} icon={CalendarCheck} />
+        <MetricCard label="New leads today" value={data.newLeadsToday} icon={Users} tone="info" />
+        <MetricCard label="New leads this week" value={data.newLeadsThisWeek} icon={Users} tone="info" />
+        <MetricCard label="Meetings scheduled" value={data.meetingsUpcoming} icon={CalendarClock} tone="violet" />
+        <MetricCard label="Meetings completed (week)" value={data.meetingsCompletedThisWeek} icon={CalendarCheck} tone="teal" />
         <MetricCard label="Won this week" value={data.wonThisWeek} icon={Trophy} tone="success" />
-        <MetricCard label="Lost this week" value={data.lostThisWeek} icon={XCircle} />
+        <MetricCard label="Lost this week" value={data.lostThisWeek} icon={XCircle} tone="danger" />
       </section>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -169,7 +171,12 @@ export function OwnerDashboardView({
                 <TableBody>
                   {data.reps.map((rep) => (
                     <TableRow key={rep.user_id}>
-                      <TableCell className="font-medium">{repName(rep)}</TableCell>
+                      <TableCell className="font-medium">
+                        <span className="flex items-center gap-2">
+                          <PersonAvatar name={repName(rep)} size="sm" />
+                          {repName(rep)}
+                        </span>
+                      </TableCell>
                       <TableCell className="text-right tabular-nums">{rep.open_leads}</TableCell>
                       <TableCell className="text-right tabular-nums">{rep.uncontacted}</TableCell>
                       <TableCell className="text-right tabular-nums">{rep.calls}</TableCell>

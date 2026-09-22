@@ -50,10 +50,10 @@ export function TodayView({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="bg-brand-wash flex flex-wrap items-end justify-between gap-3 rounded-2xl border bg-card px-5 py-6 md:px-6">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">{heading}</h1>
-          <p className="text-sm text-muted-foreground">{todayLabel}</p>
+          <p className="text-xs font-medium tracking-wide text-primary uppercase">{todayLabel}</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">{heading}</h1>
         </div>
         {next && (
           <Link

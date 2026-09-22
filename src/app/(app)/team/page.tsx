@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { listOrgMembers } from "@/lib/services/team";
 import { permissions } from "@/lib/domain/permissions";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { PersonAvatar } from "@/components/crm/layout/person-avatar";
 import {
   Table,
   TableBody,
@@ -22,10 +22,6 @@ const ROLE_VARIANT: Record<OrgRole, string> = {
   manager: "border-blue-600/30 bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400",
   salesperson: "border-muted-foreground/30 bg-muted text-muted-foreground",
 };
-
-function initials(name: string) {
-  return name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
-}
 
 export default async function TeamPage() {
   const session = await requireSession();
@@ -61,9 +57,7 @@ export default async function TeamPage() {
               return (
                 <TableRow key={m.id}>
                   <TableCell className="flex items-center gap-2 font-medium">
-                    <Avatar className="size-7">
-                      <AvatarFallback className="text-xs">{initials(profile.full_name || profile.email)}</AvatarFallback>
-                    </Avatar>
+                    <PersonAvatar name={profile.full_name || profile.email} className="size-7" />
                     {profile.full_name || "—"}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{profile.email}</TableCell>

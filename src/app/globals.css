@@ -2,12 +2,15 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* The app is light-only. Kept class-based (and the class is never set) so the
+   `dark:` utilities inside shadcn primitives stay inert — without this,
+   Tailwind would fall back to prefers-color-scheme and half-apply them. */
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -52,85 +55,64 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/*
+ * Every brand-tinted token is derived from one hue, `--brand-h`, which
+ * `[data-accent]` on <html> overrides (see src/lib/theme/accents.ts). The
+ * neutrals carry a whisper of the same hue so switching accent re-tints the
+ * whole surface, not just buttons. Status colors (success/warning/destructive)
+ * deliberately stay fixed — "overdue" must look the same under every accent.
+ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  color-scheme: light;
+  --brand-h: 265;
+  --brand-c: 0.17;
+
+  --background: oklch(0.985 0.004 var(--brand-h));
+  --foreground: oklch(0.18 0.02 var(--brand-h));
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.18 0.02 var(--brand-h));
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  /* One brand color: a calm, trustworthy indigo — deliberately not WhatsApp
-     green (avoids reading as "the WhatsApp button") and not a generic teal
-     SaaS default. Used for primary actions, active nav, links, focus rings. */
-  --primary: oklch(0.47 0.16 265);
-  --primary-foreground: oklch(0.98 0.006 265);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.95 0.02 265);
-  --accent-foreground: oklch(0.35 0.1 265);
+  --popover-foreground: oklch(0.18 0.02 var(--brand-h));
+  --primary: oklch(0.5 var(--brand-c) var(--brand-h));
+  --primary-foreground: oklch(0.985 0.006 var(--brand-h));
+  --secondary: oklch(0.96 0.01 var(--brand-h));
+  --secondary-foreground: oklch(0.25 0.03 var(--brand-h));
+  --muted: oklch(0.96 0.008 var(--brand-h));
+  --muted-foreground: oklch(0.52 0.02 var(--brand-h));
+  --accent: oklch(0.95 0.03 var(--brand-h));
+  --accent-foreground: oklch(0.38 0.12 var(--brand-h));
   --destructive: oklch(0.577 0.245 27.325);
   --success: oklch(0.55 0.14 155);
   --success-foreground: oklch(0.98 0.01 155);
   --warning: oklch(0.72 0.15 75);
   --warning-foreground: oklch(0.2 0.03 75);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.6 0.13 265);
-  --chart-1: oklch(0.47 0.16 265);
-  --chart-2: oklch(0.6 0.13 265);
-  --chart-3: oklch(0.556 0 0);
-  --chart-4: oklch(0.439 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --border: oklch(0.91 0.012 var(--brand-h));
+  --input: oklch(0.9 0.014 var(--brand-h));
+  --ring: oklch(0.62 0.14 var(--brand-h));
+  --chart-1: oklch(0.55 var(--brand-c) var(--brand-h));
+  --chart-2: oklch(0.65 0.14 195);
+  --chart-3: oklch(0.6 0.16 330);
+  --chart-4: oklch(0.72 0.15 75);
+  --chart-5: oklch(0.6 0.14 155);
   --radius: 0.625rem;
-  --sidebar: oklch(0.99 0.002 265);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.47 0.16 265);
-  --sidebar-primary-foreground: oklch(0.98 0.006 265);
-  --sidebar-accent: oklch(0.95 0.02 265);
-  --sidebar-accent-foreground: oklch(0.35 0.1 265);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.6 0.13 265);
+  --sidebar: oklch(0.97 0.012 var(--brand-h));
+  --sidebar-foreground: oklch(0.22 0.02 var(--brand-h));
+  --sidebar-primary: oklch(0.5 var(--brand-c) var(--brand-h));
+  --sidebar-primary-foreground: oklch(0.985 0.006 var(--brand-h));
+  --sidebar-accent: oklch(0.92 0.04 var(--brand-h));
+  --sidebar-accent-foreground: oklch(0.36 0.13 var(--brand-h));
+  --sidebar-border: oklch(0.9 0.016 var(--brand-h));
+  --sidebar-ring: oklch(0.62 0.14 var(--brand-h));
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.72 0.13 265);
-  --primary-foreground: oklch(0.17 0.03 265);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.28 0.05 265);
-  --accent-foreground: oklch(0.88 0.05 265);
-  --destructive: oklch(0.704 0.191 22.216);
-  --success: oklch(0.7 0.15 155);
-  --success-foreground: oklch(0.15 0.02 155);
-  --warning: oklch(0.78 0.14 75);
-  --warning-foreground: oklch(0.2 0.03 75);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.6 0.13 265);
-  --chart-1: oklch(0.72 0.13 265);
-  --chart-2: oklch(0.6 0.13 265);
-  --chart-3: oklch(0.556 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.18 0.015 265);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.72 0.13 265);
-  --sidebar-primary-foreground: oklch(0.17 0.03 265);
-  --sidebar-accent: oklch(0.28 0.05 265);
-  --sidebar-accent-foreground: oklch(0.88 0.05 265);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.6 0.13 265);
-}
+
+[data-accent="indigo"] { --brand-h: 265; }
+[data-accent="violet"] { --brand-h: 295; }
+[data-accent="blue"] { --brand-h: 245; }
+[data-accent="teal"] { --brand-h: 190; --brand-c: 0.12; }
+[data-accent="emerald"] { --brand-h: 158; --brand-c: 0.14; }
+[data-accent="rose"] { --brand-h: 10; --brand-c: 0.19; }
+[data-accent="orange"] { --brand-h: 45; --brand-c: 0.16; }
 
 @layer base {
   * {
@@ -142,4 +124,30 @@
   html {
     @apply font-sans;
   }
+}
+
+/*
+ * Hue-driven color for data with no stored color (pipeline stages, people,
+ * metric icons). Callers set only `--tone-h` (src/lib/ui/tones.ts); lightness
+ * and chroma are fixed here so every hue stays legible.
+ * Unlayered on purpose: it must beat the bg/text utilities baked into shadcn
+ * primitives (Badge, AvatarFallback) that it's applied on top of.
+ */
+.tone-soft {
+  background-color: oklch(0.95 0.045 var(--tone-h));
+  color: oklch(0.43 0.13 var(--tone-h));
+  border-color: oklch(0.86 0.07 var(--tone-h));
+}
+.tone-fg {
+  color: oklch(0.5 0.15 var(--tone-h));
+}
+.tone-bg {
+  background-color: oklch(0.64 0.15 var(--tone-h));
+}
+
+/* A soft wash of the brand color behind auth screens and page heroes. */
+.bg-brand-wash {
+  background-image:
+    radial-gradient(60rem 30rem at 0% 0%, oklch(0.62 var(--brand-c) var(--brand-h) / 14%), transparent 70%),
+    radial-gradient(50rem 30rem at 100% 100%, oklch(0.7 0.12 calc(var(--brand-h) + 60) / 12%), transparent 70%);
 }

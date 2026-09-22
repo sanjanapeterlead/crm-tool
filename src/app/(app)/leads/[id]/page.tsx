@@ -94,7 +94,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   return (
     <div className="-mx-4 -mt-4 md:-mx-6 md:-mt-6">
       {/* Identity strip — who this is, at a glance. Not sticky: it's read once, not needed while working the timeline below. */}
-      <div className="border-b bg-muted/30 px-4 py-5 md:px-6">
+      <div className="bg-brand-wash border-b bg-card px-4 py-5 md:px-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2">

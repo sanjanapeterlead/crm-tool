@@ -1,17 +1,15 @@
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { stageHue, toneStyle } from "@/lib/ui/tones";
 import type { LeadStatus } from "@/lib/types/domain";
 
-export function StatusBadge({ status }: { status: Pick<LeadStatus, "label" | "is_won" | "is_lost"> }) {
+export function StatusBadge({
+  status,
+}: {
+  status: Pick<LeadStatus, "label" | "is_won" | "is_lost"> & { sort_order?: number };
+}) {
   return (
-    <Badge
-      variant="outline"
-      className={cn(
-        "font-medium",
-        status.is_won && "border-emerald-600/30 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",
-        status.is_lost && "border-red-600/30 bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400"
-      )}
-    >
+    <Badge variant="outline" style={toneStyle(stageHue(status))} className="tone-soft gap-1.5 font-medium">
+      <span aria-hidden className="tone-bg size-1.5 rounded-full" />
       {status.label}
     </Badge>
   );
