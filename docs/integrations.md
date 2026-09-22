@@ -58,6 +58,16 @@ Everything then goes through **`captureLead(db, actor, input, { onCaptured })`**
 attribution) without the core knowing they exist; it also runs on `duplicate`, so
 a delivery that died half-way is repaired by the provider's retry.
 
+**Four callers share this one door:** manual entry (`services/leads.ts`), the
+Meta webhook, the mock source, and an admin's CSV upload
+(`services/file-import.ts`, Settings → Integrations → File upload,
+DECISIONS D-026). The CSV importer isn't a `LeadSourceProvider` — there's no
+ongoing connection to verify or poll, just a one-off admin action — so it calls
+`captureLead` directly under the uploading admin's own session, the same way
+manual entry does. Its own idempotency is just the identity dedupe already in
+step 2: re-uploading the same file merges every row into the opportunities it
+already created instead of duplicating them.
+
 ### WhatsApp
 
 ```ts

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, CircleSlash, FlaskConical, TriangleAlert } from "lucide-react";
+import { ArrowLeft, CheckCircle2, CircleSlash, FlaskConical, TriangleAlert, UploadCloud } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireRole } from "@/lib/auth/session";
@@ -15,13 +15,15 @@ import { listReceipts } from "@/lib/services/webhooks";
 import { getConnection as getWhatsAppConnection } from "@/lib/services/whatsapp";
 import { createClient } from "@/lib/supabase/server";
 
-type State = "connected" | "failing" | "disconnected" | "demo";
+type State = "connected" | "failing" | "disconnected" | "demo" | "available";
 
 const STATE_UI: Record<State, { label: string; icon: typeof CheckCircle2; className: string }> = {
   connected: { label: "Connected", icon: CheckCircle2, className: "text-emerald-700 dark:text-emerald-400" },
   failing: { label: "Failing", icon: TriangleAlert, className: "text-red-700 dark:text-red-400" },
   disconnected: { label: "Not connected", icon: CircleSlash, className: "text-muted-foreground" },
   demo: { label: "Demo mode", icon: FlaskConical, className: "text-sky-700 dark:text-sky-400" },
+  // Not a connection to be up or down — always ready to use.
+  available: { label: "Available", icon: UploadCloud, className: "text-muted-foreground" },
 };
 
 interface Row {
@@ -100,6 +102,16 @@ export default async function IntegrationHealthPage() {
       health: mockLead,
     });
   }
+
+  const fileUpload = byProvider.get("file_upload");
+  rows.push({
+    key: "file_upload",
+    name: "File upload",
+    description: "Bulk-import leads from a CSV file — a one-off, not a live connection.",
+    href: "/settings/integrations/file-upload",
+    state: fileUpload?.status === "failing" ? "failing" : "available",
+    health: fileUpload,
+  });
 
   return (
     <div className="space-y-6">

@@ -360,3 +360,47 @@ Found during the build: `login` passed the form's `redirectTo` straight to
 `safeRedirectPath` (same-origin paths only). Separately, navigation targets are
 real links (`<Link>`/`<a>` styled with `buttonVariants`) because Base UI's
 `Button render={<Link/>}` announces `role="button"` to assistive technology.
+
+---
+
+## D-026 — CSV file upload as a fourth lead-capture path
+**Status:** Accepted · 2026-09-22
+
+**Context.** Requested post-V1: an admin should be able to bulk-import leads
+from a spreadsheet (an event list, an old sheet, an export from another tool)
+from Settings → Integrations.
+
+**Decision.** Not a `LeadSourceProvider` adapter — there's no ongoing
+connection to verify, poll or show health for the way Meta or a webhook has;
+it's a one-off admin action. `services/file-import.ts` parses the file
+(`domain/csv-import.ts`, pure, unit-tested) and calls the same `captureLead`
+every other source uses, once per row, under the uploading admin's own
+session — exactly like manual entry, so RLS and the permission matrix apply
+unchanged. A `source` column is matched case-insensitively against
+`LEAD_SOURCES`; anything else is kept as `Other` with the original text as
+`sourceDetail` rather than rejected. A bad phone doesn't fail the row
+(`strictPhone: false`, as webhooks already do) since one bad cell in a
+500-row file shouldn't sink the other 499.
+
+**Idempotency.** Re-uploading the same file is safe for a different reason
+than a webhook retry: there's no event id to dedupe on, but `captureLead`'s
+identity dedupe (step 2, by normalized phone/email) already merges a repeat
+row into the opportunity it created the first time, so nothing extra was
+needed.
+
+**Consequences.** `integration_health` gained a `file_upload` provider row
+(service-role write, per the existing no-authenticated-write-policy on that
+table) so a bad or all-invalid file is visible on the Integrations page like
+any other source's failure. Limits: 1,000 rows / 2 MB per upload — generous
+for a manual list, small enough to run inline in one request without a queue.
+Admin-only (`permissions.canConnectIntegrations`), matching every other row
+on that settings page.
+
+**Real-world exports, not just clean CSVs.** The delimiter is sniffed from the
+header line (comma, tab or semicolon), because a sheet pasted as text or saved
+from Excel is often tab-separated, not comma-separated — the importer accepts
+`.csv`/`.tsv`/`.txt`. A leading `p:` on a phone number (how Meta's own lead-form
+exports and several lead-gen tools write it) is stripped before capture. Column
+matching ignores spaces/underscores/case and unmapped columns (survey answers,
+an export tool's own status fields) are silently dropped, so a business's raw
+export usually works without pre-editing it.

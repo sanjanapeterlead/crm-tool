@@ -18,12 +18,14 @@ import {
   PhoneCall,
   CopyPlus,
   CalendarClock,
+  Upload,
 } from "lucide-react";
 import type { Activity, ActivityType } from "@/lib/types/domain";
 
 const ICONS: Record<ActivityType, React.ComponentType<{ className?: string }>> = {
   lead_created: UserPlus,
   lead_imported_from_ads: Megaphone,
+  lead_imported_from_file: Upload,
   lead_updated: RefreshCw,
   lead_inquiry_received: CopyPlus,
   call_logged: PhoneCall,

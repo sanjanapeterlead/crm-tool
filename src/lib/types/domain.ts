@@ -158,6 +158,7 @@ export interface Followup {
 export const ACTIVITY_TYPES = [
   "lead_created",
   "lead_imported_from_ads",
+  "lead_imported_from_file",
   "lead_updated",
   "lead_inquiry_received",
   "call_logged",
