@@ -404,3 +404,34 @@ exports and several lead-gen tools write it) is stripped before capture. Column
 matching ignores spaces/underscores/case and unmapped columns (survey answers,
 an export tool's own status fields) are silently dropped, so a business's raw
 export usually works without pre-editing it.
+
+---
+
+## D-027 — CI runs the full gate; Vercel's own Git integration stays the deploy mechanism
+**Status:** Accepted · 2026-09-23
+
+**Context.** The audit's top P0 finding: no CI at all — lint/typecheck/tests/build
+only ran when a human remembered to. Separately, Vercel's dashboard Git
+integration is already connected to this repo and already deploys every push
+to `main` to production, independent of anything in `.github/`.
+
+**Decision.** `.github/workflows/ci.yml` runs the project's own documented
+quality gate (`lint`, `typecheck`, `test`, `test:integration` against a real
+local Supabase started in the runner, `test:e2e`, `build`) on every push and
+pull request against `main`. It does **not** also deploy. An earlier draft of
+this workflow added a second, Actions-driven deploy job (`vercel pull` /
+`vercel build` / `vercel deploy --prebuilt --prod`) before it was confirmed
+that Vercel's Git integration was already live — running both would race two
+independent deploys of the same push. Deployment stays exactly one mechanism:
+Vercel's own.
+
+**Consequence.** This workflow does not, by itself, stop broken code from
+reaching production — Vercel deploys whatever lands on `main` regardless of
+whether this workflow passed. The actual gate is branch protection on `main`
+requiring the `quality` check to pass before a PR can merge (configured in
+GitHub repo settings, not in code); until that's turned on, this workflow is
+observability (you'll see red), not enforcement. If Vercel's Git integration
+is ever disconnected, the deploy job from the earlier draft is the one to
+bring back — it needs `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` as
+repo secrets and nothing else, since it pulls the app's real env vars from
+Vercel's own Production environment rather than duplicating them into GitHub.

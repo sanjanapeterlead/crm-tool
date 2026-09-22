@@ -158,12 +158,23 @@ matter:
 
 Details, and how to add another provider: [`docs/integrations.md`](docs/integrations.md).
 
+## CI
+
+`.github/workflows/ci.yml` runs the full quality gate above — lint, typecheck,
+unit, integration (against a real local Supabase started in the runner), e2e,
+build — on every push and pull request against `main`. It doesn't deploy;
+Vercel's own Git integration does that independently (see Deployment below).
+Turn on branch protection for `main` requiring this workflow before it
+actually blocks a bad merge, rather than just reporting one (docs/DECISIONS.md
+D-027).
+
 ## Deployment
 
 **Vercel + hosted Supabase** (primary target): create a Supabase project, run the
 migrations (`supabase db push`), set the environment variables on Vercel
 (including `INTEGRATION_ENCRYPTION_KEY`; leave `ENABLE_MOCK_PROVIDERS` unset),
-and deploy. Serverless timeouts are why the Meta backfill is resumable.
+and deploy. Serverless timeouts are why the Meta backfill is resumable. Every
+push to `main` auto-deploys via Vercel's Git integration.
 
 **Docker** (anywhere Node runs):
 

@@ -1,7 +1,9 @@
+import { Kanban } from "lucide-react";
 import { requireSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { listLeadStatuses } from "@/lib/services/team";
 import { permissions } from "@/lib/domain/permissions";
+import { PageHeader } from "@/components/crm/layout/page-header";
 import { PipelineBoard } from "@/components/crm/pipeline/pipeline-board";
 import type { PipelineLead } from "@/components/crm/pipeline/lead-card";
 
@@ -25,10 +27,7 @@ export default async function PipelinePage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Pipeline</h1>
-        <p className="text-sm text-muted-foreground">Drag a lead card between columns to update its status.</p>
-      </div>
+      <PageHeader icon={Kanban} title="Pipeline" description="Drag a lead card between columns to update its status." />
       <PipelineBoard statuses={statuses} leads={(data ?? []) as unknown as PipelineLead[]} />
     </div>
   );

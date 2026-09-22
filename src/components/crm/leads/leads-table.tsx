@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { format, formatDistanceToNow, parseISO } from "date-fns";
 import { formatDate } from "@/lib/format";
-import { Mail, Phone } from "lucide-react";
+import { Mail, Phone, UserSearch } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/crm/leads/status-badge";
+import { EmptyState } from "@/components/crm/layout/empty-state";
 import type { Lead, LeadStatus, Profile, Followup, Activity } from "@/lib/types/domain";
 
 export interface LeadRow extends Lead {
@@ -33,10 +34,12 @@ function lastActivity(activities: LeadRow["activities"]) {
 export function LeadsTable({ leads, timezone }: { leads: LeadRow[]; timezone: string }) {
   if (leads.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
-        <p className="text-sm font-medium">No leads found</p>
-        <p className="mt-1 text-sm text-muted-foreground">Try adjusting your filters, or add a new lead.</p>
-      </div>
+      <EmptyState
+        icon={UserSearch}
+        tone="muted"
+        title="No leads found"
+        description="Try adjusting your filters, or add a new lead to get started."
+      />
     );
   }
 

@@ -1,0 +1,104 @@
+name: CI
+
+# Full quality gate on every push and PR: lint, typecheck, unit tests,
+# integration tests against a real local Supabase, e2e tests, production
+# build. Deployment itself is Vercel's own Git integration (already connected
+# to this repo) — it deploys whatever lands on main regardless of this
+# workflow, so the gate that actually matters is on `main` itself: branch
+# protection requiring this workflow to pass before a PR can merge (see the
+# README/setup note this PR's description links). See docs/DECISIONS.md D-027
+# and the UI/UX audit's P0 "no CI" finding.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Lint, typecheck, tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      # ---- Everything below needs a real local Supabase (RLS, migrations,
+      # seed) — the same stack `npm run db:start && npm run db:reset` gives
+      # a developer locally, just running inside the CI container.
+      - name: Start local Supabase
+        run: npx supabase start
+
+      - name: Capture local Supabase connection details
+        run: |
+          STATUS=$(npx supabase status -o json)
+          echo "SUPABASE_API_URL=$(echo "$STATUS" | jq -r '.API_URL')" >> "$GITHUB_ENV"
+          echo "SUPABASE_ANON_KEY=$(echo "$STATUS" | jq -r '.ANON_KEY')" >> "$GITHUB_ENV"
+          echo "SUPABASE_SERVICE_ROLE_KEY=$(echo "$STATUS" | jq -r '.SERVICE_ROLE_KEY')" >> "$GITHUB_ENV"
+
+      - name: Write .env.local
+        run: |
+          cat > .env.local <<EOF
+          NEXT_PUBLIC_SUPABASE_URL=$SUPABASE_API_URL
+          NEXT_PUBLIC_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+          SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY
+          NEXT_PUBLIC_APP_URL=http://localhost:3000
+          INTEGRATION_ENCRYPTION_KEY=$(node -e "console.log(require('crypto').randomBytes(32).toString('base64'))")
+          ENABLE_MOCK_PROVIDERS=true
+          LOG_LEVEL=warn
+          LOGIN_RATE_LIMIT_PER_IP=100000
+          LOGIN_RATE_LIMIT_PER_EMAIL=100000
+          SIGNUP_RATE_LIMIT_PER_IP=100000
+          RESET_RATE_LIMIT_PER_IP=100000
+          RESET_RATE_LIMIT_PER_EMAIL=100000
+          EOF
+
+      - name: Apply migrations and seed
+        run: npx supabase db reset
+
+      - name: Integration tests
+        run: npm run test:integration
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E tests
+        run: npm run test:e2e
+        env:
+          CI: true
+
+      - name: Production build
+        run: npm run build
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

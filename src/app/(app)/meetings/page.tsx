@@ -1,10 +1,12 @@
-import { Video, ExternalLink } from "lucide-react";
+import { Video, ExternalLink, CalendarClock } from "lucide-react";
 import Link from "next/link";
 import { requireSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { permissions } from "@/lib/domain/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/crm/layout/page-header";
+import { EmptyState } from "@/components/crm/layout/empty-state";
 import { MeetingStatusMenu } from "@/components/crm/leads/meeting-status-menu";
 import { MeetingSyncStatus } from "@/components/crm/leads/meeting-calendar-controls";
 import { MEETING_STATUS_VARIANT as STATUS_VARIANT } from "@/components/crm/leads/meetings-list";
@@ -34,15 +36,14 @@ export default async function MeetingsPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Meetings</h1>
-        <p className="text-sm text-muted-foreground">Every meeting booked through the CRM.</p>
-      </div>
+      <PageHeader icon={CalendarClock} title="Meetings" description="Every meeting booked through the CRM." />
 
       {meetings.length === 0 ? (
-        <div className="rounded-lg border border-dashed py-16 text-center text-sm text-muted-foreground">
-          No meetings yet. Schedule one from a lead&apos;s detail page.
-        </div>
+        <EmptyState
+          icon={CalendarClock}
+          title="No meetings yet"
+          description="Schedule one from a lead's detail page — it'll show up here with its Meet link and status."
+        />
       ) : (
         <div className="space-y-2">
           {meetings.map((meeting) => (

@@ -1,3 +1,4 @@
+import { Users } from "lucide-react";
 import { requireSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { listLeads, type LeadDueFilter, type LeadStateFilter } from "@/lib/services/leads";
@@ -5,6 +6,7 @@ import { permissions } from "@/lib/domain/permissions";
 import { listCampaigns } from "@/lib/services/meta";
 import { listLeadStatuses, listOrgMembers } from "@/lib/services/team";
 import { LEAD_SOURCES } from "@/lib/types/domain";
+import { PageHeader } from "@/components/crm/layout/page-header";
 import { LeadFilters } from "@/components/crm/leads/lead-filters";
 import { AddLeadDialog } from "@/components/crm/leads/add-lead-dialog";
 import { LeadsTable, type LeadRow } from "@/components/crm/leads/leads-table";
@@ -43,13 +45,12 @@ export default async function LeadsPage({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Leads</h1>
-          <p className="text-sm text-muted-foreground">Every lead in your pipeline, in one place.</p>
-        </div>
-        <AddLeadDialog members={memberProfiles} canAssign={permissions.canViewAllLeads(session.role)} />
-      </div>
+      <PageHeader
+        icon={Users}
+        title="Leads"
+        description="Every lead in your pipeline, in one place."
+        actions={<AddLeadDialog members={memberProfiles} canAssign={permissions.canViewAllLeads(session.role)} />}
+      />
 
       <LeadFilters
         statuses={statuses}

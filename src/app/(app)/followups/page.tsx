@@ -1,10 +1,20 @@
 import Link from "next/link";
+import { ListChecks, PartyPopper } from "lucide-react";
 import { requireSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { listFollowups, type FollowupView } from "@/lib/services/followups";
 import { FollowupRow } from "@/components/crm/followups/followup-row";
+import { PageHeader } from "@/components/crm/layout/page-header";
+import { EmptyState } from "@/components/crm/layout/empty-state";
 import { cn } from "@/lib/utils";
 import type { Followup } from "@/lib/types/domain";
+
+const EMPTY_COPY: Record<FollowupView, { title: string; description: string }> = {
+  today: { title: "Nothing due today", description: "Today's queue is clear. Check Upcoming for what's next." },
+  upcoming: { title: "Nothing on the horizon", description: "No follow-ups scheduled ahead of today yet." },
+  overdue: { title: "Nothing overdue", description: "Every follow-up is on schedule — good place to be." },
+  completed: { title: "Nothing completed yet", description: "Follow-ups you finish will show up here." },
+};
 
 const VIEWS: { value: FollowupView; label: string }[] = [
   { value: "today", label: "Today" },
@@ -29,10 +39,7 @@ export default async function FollowupsPage({
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Follow-ups</h1>
-        <p className="text-sm text-muted-foreground">What needs to happen next, and when.</p>
-      </div>
+      <PageHeader icon={ListChecks} title="Follow-ups" description="What needs to happen next, and when." />
 
       <div className="inline-flex w-fit gap-1 rounded-lg bg-muted p-[3px]">
         {VIEWS.map((v) => (
@@ -54,9 +61,12 @@ export default async function FollowupsPage({
 
       <div className="space-y-2">
         {followups.length === 0 ? (
-          <div className="rounded-lg border border-dashed py-16 text-center text-sm text-muted-foreground">
-            Nothing here.
-          </div>
+          <EmptyState
+            icon={activeView === "overdue" || activeView === "today" ? PartyPopper : ListChecks}
+            tone={activeView === "overdue" || activeView === "today" ? "brand" : "muted"}
+            title={EMPTY_COPY[activeView].title}
+            description={EMPTY_COPY[activeView].description}
+          />
         ) : (
           followups.map((f) => <FollowupRow key={f.id} followup={f} showLead showAssignee />)
         )}
