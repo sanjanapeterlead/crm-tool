@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { formatDateTime } from "@/lib/format";
 import {
   UserPlus,
   RefreshCw,
@@ -11,16 +11,30 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  Megaphone,
+  MessageCircle,
+  MessageSquareReply,
+  MessageSquareWarning,
+  PhoneCall,
+  CopyPlus,
+  CalendarClock,
 } from "lucide-react";
 import type { Activity, ActivityType } from "@/lib/types/domain";
 
 const ICONS: Record<ActivityType, React.ComponentType<{ className?: string }>> = {
   lead_created: UserPlus,
+  lead_imported_from_ads: Megaphone,
   lead_updated: RefreshCw,
+  lead_inquiry_received: CopyPlus,
+  call_logged: PhoneCall,
+  whatsapp_sent: MessageCircle,
+  whatsapp_received: MessageSquareReply,
+  whatsapp_failed: MessageSquareWarning,
   lead_assigned: ArrowRightLeft,
   status_changed: RefreshCw,
   note_created: StickyNote,
   meeting_scheduled: CalendarPlus,
+  meeting_rescheduled: CalendarClock,
   meeting_completed: CalendarCheck,
   meeting_cancelled: CalendarX,
   followup_created: ListChecks,
@@ -29,7 +43,7 @@ const ICONS: Record<ActivityType, React.ComponentType<{ className?: string }>> =
   followup_rescheduled: Clock,
 };
 
-export function ActivityTimeline({ activities }: { activities: Activity[] }) {
+export function ActivityTimeline({ activities, timezone }: { activities: Activity[]; timezone: string }) {
   if (activities.length === 0) {
     return <p className="text-sm text-muted-foreground">No activity yet.</p>;
   }
@@ -52,7 +66,7 @@ export function ActivityTimeline({ activities }: { activities: Activity[] }) {
                 <p className="text-sm text-muted-foreground">{activity.description}</p>
               )}
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {format(new Date(activity.created_at), "MMM d, yyyy · h:mm a")}
+                {formatDateTime(activity.created_at, timezone)}
                 {activity.actor?.full_name ? ` · ${activity.actor.full_name}` : ""}
               </p>
             </div>

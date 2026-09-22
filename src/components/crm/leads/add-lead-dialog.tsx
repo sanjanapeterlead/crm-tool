@@ -17,7 +17,7 @@ import { createLeadAction } from "@/app/(app)/actions";
 import type { Profile } from "@/lib/types/domain";
 import type { LeadFormInput } from "@/lib/validation/lead";
 
-export function AddLeadDialog({ members }: { members: Profile[] }) {
+export function AddLeadDialog({ members, canAssign = true }: { members: Profile[]; canAssign?: boolean }) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
@@ -27,10 +27,16 @@ export function AddLeadDialog({ members }: { members: Profile[] }) {
       toast.error(result.error);
       return;
     }
-    toast.success("Lead created");
+    // The action already revalidates every affected page, so navigating is enough
+    // (calling refresh() as well raced the navigation and made the dialog flaky).
+    toast.success(
+      result.data?.outcome === "merged"
+        ? "Already in the CRM — opened the existing lead"
+        : "Lead created"
+    );
     setOpen(false);
-    router.refresh();
     if (result.data) router.push(`/leads/${result.data.id}`);
+    else router.refresh();
   }
 
   return (
@@ -43,7 +49,7 @@ export function AddLeadDialog({ members }: { members: Profile[] }) {
         <DialogHeader>
           <DialogTitle>Add a new lead</DialogTitle>
         </DialogHeader>
-        <LeadForm members={members} onSubmit={handleSubmit} submitLabel="Create Lead" />
+        <LeadForm members={members} onSubmit={handleSubmit} submitLabel="Create Lead" showAssignment={canAssign} />
       </DialogContent>
     </Dialog>
   );

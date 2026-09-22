@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+npm-debug.log*
+playwright-report
+test-results
+tsconfig.tsbuildinfo
+supabase/.temp
+supabase/.branches
+docs
+*.md
+!README.md

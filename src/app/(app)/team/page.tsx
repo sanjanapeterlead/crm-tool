@@ -1,6 +1,7 @@
 import { requireSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { listOrgMembers } from "@/lib/services/team";
+import { permissions } from "@/lib/domain/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -11,6 +12,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { InviteMemberDialog } from "@/components/crm/team/invite-member-dialog";
+import { MemberRoleSelect } from "@/components/crm/team/member-role-select";
+import { MemberActiveToggle } from "@/components/crm/team/member-active-toggle";
 import type { Profile, OrgRole } from "@/lib/types/domain";
 
 const ROLE_VARIANT: Record<OrgRole, string> = {
@@ -27,12 +31,16 @@ export default async function TeamPage() {
   const session = await requireSession();
   const supabase = await createClient();
   const members = await listOrgMembers(supabase, session);
+  const canManage = permissions.canManageTeam(session.role);
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Team</h1>
-        <p className="text-sm text-muted-foreground">Everyone with access to {session.orgName}.</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">Team</h1>
+          <p className="text-sm text-muted-foreground">Everyone with access to {session.orgName}.</p>
+        </div>
+        {canManage && <InviteMemberDialog />}
       </div>
 
       <div className="overflow-x-auto rounded-lg border">
@@ -42,11 +50,14 @@ export default async function TeamPage() {
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
+              <TableHead>Status</TableHead>
+              {canManage && <TableHead className="text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {members.map((m) => {
               const profile = (Array.isArray(m.profile) ? m.profile[0] : m.profile) as Profile;
+              const isActive = m.is_active !== false;
               return (
                 <TableRow key={m.id}>
                   <TableCell className="flex items-center gap-2 font-medium">
@@ -61,6 +72,27 @@ export default async function TeamPage() {
                       {m.role}
                     </Badge>
                   </TableCell>
+                  <TableCell>
+                    {isActive ? (
+                      <Badge variant="secondary">Active</Badge>
+                    ) : (
+                      <Badge variant="destructive">Deactivated</Badge>
+                    )}
+                  </TableCell>
+                  {canManage && (
+                    <TableCell className="flex items-center justify-end gap-2 text-right">
+                      <MemberRoleSelect
+                        userId={m.user_id as string}
+                        role={m.role as OrgRole}
+                        name={profile.full_name || profile.email}
+                      />
+                      <MemberActiveToggle
+                        userId={m.user_id as string}
+                        isActive={isActive}
+                        isSelf={m.user_id === session.user.id}
+                      />
+                    </TableCell>
+                  )}
                 </TableRow>
               );
             })}

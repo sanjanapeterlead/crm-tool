@@ -1,10 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/auth"];
+// `/api/webhooks` is authenticated by provider signature, not by a session —
+// Meta's POSTs carry no cookies and must never be redirected to /login.
+const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/auth", "/api/webhooks", "/api/health"];
 
+// Match a whole path segment: `/auth` must not also make `/authors` public.
 function isPublicPath(pathname: string) {
-  return PUBLIC_PATHS.some((path) => pathname.startsWith(path));
+  return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
 
 /**
@@ -47,7 +50,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (user && pathname === "/login") {
+  if (user && (pathname === "/login" || pathname === "/signup")) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 

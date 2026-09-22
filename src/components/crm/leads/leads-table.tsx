@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { format, formatDistanceToNow, parseISO } from "date-fns";
+import { formatDate } from "@/lib/format";
 import { Mail, Phone } from "lucide-react";
 import {
   Table,
@@ -29,7 +30,7 @@ function lastActivity(activities: LeadRow["activities"]) {
   return activities.reduce((latest, a) => (a.created_at > latest.created_at ? a : latest));
 }
 
-export function LeadsTable({ leads }: { leads: LeadRow[] }) {
+export function LeadsTable({ leads, timezone }: { leads: LeadRow[]; timezone: string }) {
   if (leads.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
@@ -87,7 +88,7 @@ export function LeadsTable({ leads }: { leads: LeadRow[] }) {
                 <TableCell className="text-sm text-muted-foreground">
                   {activity ? formatDistanceToNow(new Date(activity.created_at), { addSuffix: true }) : "—"}
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">{format(new Date(lead.created_at), "MMM d, yyyy")}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{formatDate(lead.created_at, timezone)}</TableCell>
               </TableRow>
             );
           })}

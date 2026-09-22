@@ -1,7 +1,7 @@
-import { format } from "date-fns";
+import { formatDateTime } from "@/lib/format";
 import type { Note } from "@/lib/types/domain";
 
-export function NotesList({ notes }: { notes: Note[] }) {
+export function NotesList({ notes, timezone }: { notes: Note[]; timezone: string }) {
   if (notes.length === 0) {
     return <p className="text-sm text-muted-foreground">No notes yet.</p>;
   }
@@ -13,7 +13,7 @@ export function NotesList({ notes }: { notes: Note[] }) {
           <p className="whitespace-pre-wrap text-sm">{note.content}</p>
           <p className="mt-2 text-xs text-muted-foreground">
             {note.author?.full_name || note.author?.email || "Unknown"} ·{" "}
-            {format(new Date(note.created_at), "MMM d, yyyy · h:mm a")}
+            {formatDateTime(note.created_at, timezone)}
           </p>
         </div>
       ))}

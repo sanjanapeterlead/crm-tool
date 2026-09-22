@@ -12,7 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { leadFormSchema, type LeadFormInput, leadSourceSchema } from "@/lib/validation/lead";
+import {
+  leadFormSchema,
+  type LeadFormInput,
+  leadPrioritySchema,
+  leadSourceSchema,
+} from "@/lib/validation/lead";
 import type { Profile } from "@/lib/types/domain";
 
 const UNASSIGNED = "__unassigned__";
@@ -37,8 +42,10 @@ export function LeadForm({
       last_name: "",
       phone: "",
       email: "",
+      additional_phone: "",
       source: "Manual",
       assigned_to: "",
+      priority: "medium",
       ...defaultValues,
     },
   });
@@ -46,6 +53,7 @@ export function LeadForm({
   const { register, handleSubmit, setValue, watch, formState } = form;
   const source = watch("source");
   const assignedTo = watch("assigned_to");
+  const priority = watch("priority");
 
   return (
     <form
@@ -70,7 +78,7 @@ export function LeadForm({
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label htmlFor="phone">Phone</Label>
-          <Input id="phone" {...register("phone")} placeholder="+1 555 0100" />
+          <Input id="phone" type="tel" autoComplete="off" {...register("phone")} placeholder="98765 43210" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="email">Email</Label>
@@ -80,6 +88,37 @@ export function LeadForm({
       {formState.errors.phone && (
         <p className="-mt-2 text-xs text-destructive">{formState.errors.phone.message}</p>
       )}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="additional_phone">Alternate phone</Label>
+          <Input id="additional_phone" type="tel" autoComplete="off" {...register("additional_phone")} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Priority</Label>
+          <Select value={priority} onValueChange={(v) => setValue("priority", v as LeadFormInput["priority"])}>
+            <SelectTrigger aria-label="Priority">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {leadPrioritySchema.options.map((p) => (
+                <SelectItem key={p} value={p}>
+                  {p[0].toUpperCase() + p.slice(1)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="value">Expected value</Label>
+          <Input
+            id="value"
+            type="number"
+            min={0}
+            inputMode="decimal"
+            {...register("value", { setValueAs: (v) => (v === "" || v == null ? null : Number(v)) })}
+          />
+        </div>
+      </div>
       <div className={showAssignment ? "grid grid-cols-2 gap-3" : ""}>
         <div className="space-y-1.5">
           <Label>Source</Label>

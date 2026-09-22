@@ -5,8 +5,9 @@ import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { SidebarNav } from "@/components/crm/nav/sidebar-nav";
+import type { OrgRole } from "@/lib/domain/permissions";
 
-export function MobileNav({ orgName }: { orgName: string }) {
+export function MobileNav({ orgName, role }: { orgName: string; role: OrgRole }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -19,7 +20,7 @@ export function MobileNav({ orgName }: { orgName: string }) {
           <SheetTitle>{orgName}</SheetTitle>
         </SheetHeader>
         <div onClick={() => setOpen(false)}>
-          <SidebarNav />
+          <SidebarNav role={role} />
         </div>
       </SheetContent>
     </Sheet>

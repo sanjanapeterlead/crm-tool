@@ -5,7 +5,8 @@ import type { ActivityType } from "@/lib/types/domain";
 interface LogActivityInput {
   orgId: string;
   leadId: string;
-  actorId: string;
+  /** Null for events the system performed with no human actor, e.g. a Meta webhook import. */
+  actorId: string | null;
   type: ActivityType;
   title: string;
   description?: string;

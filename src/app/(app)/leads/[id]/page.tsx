@@ -1,15 +1,23 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { format } from "date-fns";
-import { Mail, Phone, Pencil } from "lucide-react";
+import { Mail, Phone, PhoneCall, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { requireSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { getLead, getLeadTimeline } from "@/lib/services/leads";
 import { listLeadStatuses, listOrgMembers } from "@/lib/services/team";
 import { getOrganization } from "@/lib/services/settings";
-import { canAccessLead } from "@/lib/permissions";
+import { getLeadAttribution } from "@/lib/services/meta";
+import { listTemplates } from "@/lib/services/whatsapp";
+import { getConversationState, listMessagesForLead } from "@/lib/services/conversations";
+import { whatsappMode } from "@/lib/composition/whatsapp";
+import { calendarMode } from "@/lib/composition/calendar";
+import { formatDateTime } from "@/lib/format";
+import { addDays, dueBoundaries } from "@/lib/domain/due";
+import { canAccessLead, permissions } from "@/lib/domain/permissions";
+import { LogCallDialog } from "@/components/crm/leads/log-call-dialog";
+import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/crm/leads/status-badge";
 import { AssignLeadDialog } from "@/components/crm/leads/assign-lead-dialog";
 import { ChangeStatusDialog } from "@/components/crm/leads/change-status-dialog";
@@ -21,7 +29,12 @@ import { ActivityTimeline } from "@/components/crm/leads/activity-timeline";
 import { NotesList } from "@/components/crm/leads/notes-list";
 import { MeetingsList } from "@/components/crm/leads/meetings-list";
 import { FollowupRow } from "@/components/crm/followups/followup-row";
-import type { Lead, LeadStatus, Profile } from "@/lib/types/domain";
+import { LeadAttributionCard } from "@/components/crm/leads/lead-attribution-card";
+import { SendWhatsAppDialog } from "@/components/crm/leads/send-whatsapp-dialog";
+import { WhatsAppMessagesList } from "@/components/crm/leads/whatsapp-messages-list";
+import { WhatsAppConsentControl } from "@/components/crm/leads/whatsapp-consent-control";
+import { SimulateReplyDialog } from "@/components/crm/leads/simulate-reply-dialog";
+import type { Lead, LeadStatus, MetaLeadAttribution, Profile } from "@/lib/types/domain";
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -32,11 +45,28 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   if (!lead) notFound();
   if (!canAccessLead(session.role, session.user.id, lead)) notFound();
 
-  const [{ notes, meetings, followups, activities }, statuses, members, organization] = await Promise.all([
+  const [
+    { notes, meetings, followups, activities },
+    statuses,
+    members,
+    organization,
+    attribution,
+    waMode,
+    calMode,
+    whatsAppTemplates,
+    whatsAppMessages,
+    waState,
+  ] = await Promise.all([
     getLeadTimeline(supabase, id),
     listLeadStatuses(supabase, session.orgId),
     listOrgMembers(supabase, session),
     getOrganization(supabase, session.orgId),
+    getLeadAttribution(supabase, id),
+    whatsappMode(supabase, session.orgId),
+    calendarMode(supabase, session.orgId),
+    listTemplates(supabase, session.orgId),
+    listMessagesForLead(supabase, id),
+    getConversationState(supabase, id),
   ]);
 
   const memberProfiles = members
@@ -46,6 +76,17 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const leadTyped = lead as unknown as Lead & { status: LeadStatus; assignee: Profile | null };
   const nextFollowup = followups.find((f) => f.status === "pending") ?? null;
   const upcomingMeeting = meetings.find((m) => m.status === "scheduled") ?? null;
+
+  const timezone = session.timezone;
+  const tomorrow = addDays(dueBoundaries(new Date(), timezone).today, 1);
+  const leadName = `${leadTyped.first_name} ${leadTyped.last_name ?? ""}`.trim();
+  const canReassign = permissions.canViewAllLeads(session.role);
+  // A salesperson can't hand leads around, but may take one nobody owns yet.
+  const canClaim = !canReassign && leadTyped.assigned_to === null;
+  const self = memberProfiles.filter((m) => m.id === session.user.id);
+  const priority = (lead as { priority?: string }).priority;
+  const value = (lead as { value?: number | null }).value;
+  const lostReason = (lead as { lost_reason?: string | null }).lost_reason;
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -81,6 +122,19 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                   )}
                   <span>Source: {leadTyped.source}</span>
                 </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                  {priority && priority !== "medium" && (
+                    <Badge variant="outline" className={priority === "high" ? "border-amber-600/40 text-amber-700 dark:text-amber-400" : ""}>
+                      {priority} priority
+                    </Badge>
+                  )}
+                  {value != null && (
+                    <span className="text-muted-foreground">
+                      Value {new Intl.NumberFormat("en-IN", { style: "currency", currency: (organization.currency as string) ?? "INR", maximumFractionDigits: 0 }).format(value)}
+                    </span>
+                  )}
+                  {lostReason && <span className="text-red-700 dark:text-red-400">Lost: {lostReason}</span>}
+                </div>
               </div>
               <div className="flex flex-col items-end gap-2">
                 <StatusBadge status={leadTyped.status} />
@@ -91,14 +145,29 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2">
+              {leadTyped.phone && (
+                <a href={`tel:${leadTyped.phone}`} className={buttonVariants()}>
+                  <PhoneCall /> Call
+                </a>
+              )}
+              <LogCallDialog
+                leadId={id}
+                leadName={leadName}
+                defaultFollowupDate={tomorrow}
+                trigger={<Button variant={leadTyped.phone ? "outline" : "default"}>Log call</Button>}
+              />
               <ChangeStatusDialog
                 leadId={id}
                 statuses={statuses}
                 currentStatusId={leadTyped.status_id}
-                trigger={<Button variant="outline">Change Status</Button>}
+                trigger={<Button variant="outline">Change Stage</Button>}
               />
               <ScheduleMeetingDialog
                 leadId={id}
+                calendarMode={calMode}
+                defaultDate={dueBoundaries(new Date(), timezone).today}
+                contactEmail={(lead.contact as { email_normalized?: string | null } | null)?.email_normalized ?? null}
+                timezone={timezone}
                 calendlyBookingUrl={organization.calendly_booking_url}
                 trigger={<Button variant="outline">Schedule Meeting</Button>}
               />
@@ -109,12 +178,33 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                 trigger={<Button variant="outline">Add Follow-up</Button>}
               />
               <AddNoteDialog leadId={id} trigger={<Button variant="outline">Add Note</Button>} />
-              <AssignLeadDialog
-                leadId={id}
-                members={memberProfiles}
-                currentAssignee={leadTyped.assigned_to}
-                trigger={<Button variant="outline">Reassign</Button>}
-              />
+              {waMode !== "unavailable" && leadTyped.phone && (
+                <SendWhatsAppDialog
+                  leadId={id}
+                  leadFirstName={leadTyped.first_name}
+                  templates={whatsAppTemplates}
+                  windowOpen={waState.windowOpen}
+                  optedOut={waState.consent === "opted_out"}
+                  demo={waMode === "demo"}
+                  trigger={<Button variant="outline">Send WhatsApp</Button>}
+                />
+              )}
+              {canReassign && (
+                <AssignLeadDialog
+                  leadId={id}
+                  members={memberProfiles}
+                  currentAssignee={leadTyped.assigned_to}
+                  trigger={<Button variant="outline">{leadTyped.assigned_to ? "Reassign" : "Assign"}</Button>}
+                />
+              )}
+              {canClaim && (
+                <AssignLeadDialog
+                  leadId={id}
+                  members={self}
+                  currentAssignee={leadTyped.assigned_to}
+                  trigger={<Button variant="outline">Claim lead</Button>}
+                />
+              )}
             </div>
           </CardContent>
         </Card>
@@ -124,7 +214,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             <CardTitle className="text-base">Activity Timeline</CardTitle>
           </CardHeader>
           <CardContent>
-            <ActivityTimeline activities={activities} />
+            <ActivityTimeline activities={activities} timezone={timezone} />
           </CardContent>
         </Card>
 
@@ -133,19 +223,45 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             <CardTitle className="text-base">Notes</CardTitle>
           </CardHeader>
           <CardContent>
-            <NotesList notes={notes} />
+            <NotesList notes={notes} timezone={timezone} />
           </CardContent>
         </Card>
+
+        {waMode !== "unavailable" && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-base">
+                <span className="flex items-center gap-2">
+                  WhatsApp
+                  {waMode === "demo" && <Badge variant="outline">Demo mode</Badge>}
+                </span>
+                {waMode === "demo" && <SimulateReplyDialog leadId={id} leadName={leadName} />}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <WhatsAppConsentControl
+                leadId={id}
+                status={waState.consent}
+                source={(lead.contact as { whatsapp_consent_source?: string | null } | null)?.whatsapp_consent_source ?? null}
+              />
+              <WhatsAppMessagesList messages={whatsAppMessages} timezone={timezone} />
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <div className="space-y-6">
+        {attribution && (
+          <LeadAttributionCard attribution={attribution as unknown as MetaLeadAttribution} timezone={timezone} />
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Next Follow-up</CardTitle>
           </CardHeader>
           <CardContent>
             {nextFollowup ? (
-              <FollowupRow followup={nextFollowup} />
+              <FollowupRow followup={nextFollowup} timezone={timezone} />
             ) : (
               <p className="text-sm text-muted-foreground">No follow-up scheduled.</p>
             )}
@@ -159,7 +275,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
           <CardContent>
             {upcomingMeeting ? (
               <p className="text-sm">
-                {format(new Date(upcomingMeeting.scheduled_start), "MMM d, yyyy · h:mm a")}
+                {formatDateTime(upcomingMeeting.scheduled_start, timezone)}
                 <br />
                 {upcomingMeeting.meeting_url && (
                   <Link
@@ -167,7 +283,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                     target="_blank"
                     className="text-primary hover:underline"
                   >
-                    Google Meet link
+                    Join meeting
                   </Link>
                 )}
               </p>
@@ -182,7 +298,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             <CardTitle className="text-base">Meetings</CardTitle>
           </CardHeader>
           <CardContent>
-            <MeetingsList meetings={meetings} leadId={id} />
+            <MeetingsList meetings={meetings} timezone={timezone} />
           </CardContent>
         </Card>
 
@@ -194,7 +310,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             {followups.length === 0 ? (
               <p className="text-sm text-muted-foreground">No follow-ups yet.</p>
             ) : (
-              followups.map((f) => <FollowupRow key={f.id} followup={f} />)
+              followups.map((f) => <FollowupRow key={f.id} followup={f} timezone={timezone} />)
             )}
           </CardContent>
         </Card>

@@ -1,15 +1,16 @@
 import { test, expect, type Page } from "@playwright/test";
 
-// Matches the acceptance scenario in the project spec: manual lead entry
-// through assignment, meeting, outcome, follow-up, and dashboard reflection.
-// Requires `npm run db:reset` to have been run against the local Supabase
-// stack so the seeded admin/salesperson accounts exist.
+// The V1 happy path, driven through the real UI:
+//   manual lead → assign → call outcome → follow-up → stage moves → meeting → Won
+// and the Lost path with a required reason. Requires `npm run db:reset` so the
+// seeded demo org (Summit Sales Group, demo-mode WhatsApp/Calendar) exists.
+//
+// Replaces the V0 spec, which raced router.refresh() against router.push() in
+// the add-lead dialog (fixed in add-lead-dialog.tsx) and asserted V0 labels.
 
 const ADMIN_EMAIL = "admin@summitsales.test";
 const PASSWORD = "password123";
 const SALESPERSON_NAME = "Jordan Blake";
-const LEAD_FIRST_NAME = "Sanjana";
-const LEAD_LAST_NAME = "Peter";
 
 async function login(page: Page, email: string) {
   await page.goto("/login");
@@ -19,100 +20,146 @@ async function login(page: Page, email: string) {
   await expect(page).toHaveURL("/");
 }
 
-test("full lead lifecycle: create -> assign -> meeting -> follow-up -> converted", async ({ page }) => {
-  await login(page, ADMIN_EMAIL);
+/** A phone number no other test run will have used, so dedupe never turns the create into a merge. */
+function freshPhone() {
+  return `9${String(Date.now()).slice(-9)}`;
+}
 
-  // 1. Create a lead.
+async function addLead(page: Page, first: string, last: string, phone: string, email: string, assignTo?: string) {
   await page.goto("/leads");
   await page.getByRole("button", { name: "Add Lead" }).click();
-  const addDialog = page.getByRole("dialog");
-  await addDialog.getByLabel("First name").fill(LEAD_FIRST_NAME);
-  await addDialog.getByLabel("Last name").fill(LEAD_LAST_NAME);
-  await addDialog.getByLabel("Phone").fill("+1-555-9999");
-  await addDialog.getByLabel("Email").fill("sanjana.peter.e2e@example.com");
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("First name").fill(first);
+  await dialog.getByLabel("Last name").fill(last);
+  await dialog.getByLabel("Phone", { exact: true }).fill(phone);
+  await dialog.getByLabel("Email").fill(email);
+  if (assignTo) {
+    await dialog.getByRole("combobox").last().click();
+    await page.getByRole("option", { name: assignTo }).click();
+  }
+  await dialog.getByRole("button", { name: "Create Lead" }).click();
+  await expect(page.getByRole("heading", { name: `${first} ${last}` })).toBeVisible();
+}
 
-  // Assign to salesperson.
-  const assignTrigger = addDialog.getByRole("combobox").last();
-  await assignTrigger.click();
-  await page.getByRole("option", { name: SALESPERSON_NAME }).click();
+async function changeStage(page: Page, stage: string, lostReason?: string) {
+  await page.getByRole("button", { name: "Change Stage" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("combobox").first().click();
+  await page.getByRole("option", { name: stage, exact: true }).click();
+  if (lostReason) {
+    await dialog.getByRole("combobox", { name: "Reason for losing this lead" }).click();
+    await page.getByRole("option", { name: lostReason, exact: true }).click();
+  }
+  await dialog.getByRole("button", { name: "Update stage" }).click();
+  await expect(dialog).toBeHidden();
+}
 
-  await addDialog.getByRole("button", { name: "Create Lead" }).click();
+test("V1 lead-to-sale: create → assign → call → follow-up → stages → meeting → Won", async ({ page }) => {
+  const stamp = Date.now();
+  const first = "Ananya";
+  const last = `Flow${stamp}`;
+  await login(page, ADMIN_EMAIL);
 
-  // 2. Lead detail page opens. Capture its URL — the seed data also
-  // includes a "Sanjana Peter" lead, so name-based lookups elsewhere would
-  // be ambiguous; navigating back to this exact URL is not.
-  await expect(page.getByRole("heading", { name: `${LEAD_FIRST_NAME} ${LEAD_LAST_NAME}` })).toBeVisible();
-  await expect(page.getByText(`Assigned to ${SALESPERSON_NAME}`)).toBeVisible();
+  // 1. Manual create, assigned to a salesperson. It lands in the entry stage.
+  await addLead(page, first, last, freshPhone(), `ananya.${stamp}@example.com`, SALESPERSON_NAME);
+  await expect(page.getByText(`Assigned to ${SALESPERSON_NAME}`, { exact: true })).toBeVisible();
+  await expect(page.getByText("New Lead", { exact: true }).first()).toBeVisible();
   const leadUrl = page.url();
 
-  // 3. Verify it shows up in the Leads list (search narrows to just this lead).
-  await page.goto("/leads?search=sanjana.peter.e2e");
-  await expect(page.getByRole("link", { name: `${LEAD_FIRST_NAME} ${LEAD_LAST_NAME}` })).toBeVisible();
-  await page.goto(leadUrl);
-
-  // 4. Change status to Contacted.
-  await page.getByRole("button", { name: "Change Status" }).click();
+  // 2. Log a call: outcome + duration + notes, and the next follow-up in the same step.
+  await page.getByRole("button", { name: "Log call" }).click();
   let dialog = page.getByRole("dialog");
-  await dialog.getByRole("combobox").click();
-  await page.getByRole("option", { name: "Contacted", exact: true }).click();
-  await dialog.getByRole("button", { name: "Update status" }).click();
-  await expect(page.getByText("Contacted", { exact: true }).first()).toBeVisible();
+  await dialog.getByRole("button", { name: "Connected / Interested" }).click();
+  await dialog.getByLabel("Minutes").fill("6");
+  await dialog.getByLabel("Notes").fill("Wants UK intake details.");
+  await dialog.getByLabel("Reminder").fill("Send the fee sheet");
+  await dialog.getByRole("button", { name: "Save call" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText("Call: Connected / Interested")).toBeVisible();
+  await expect(page.getByText("Follow-up created")).toBeVisible();
 
-  // 5. Schedule / log a meeting.
+  // 3. Move through the pipeline. Each move is a timeline event.
+  await changeStage(page, "Contacted");
+  await expect(page.getByText("Stage changed: New Lead → Contacted")).toBeVisible();
+  await changeStage(page, "Interested");
+  await expect(page.getByText("Stage changed: Contacted → Interested")).toBeVisible();
+
+  // 4. Schedule a meeting. Demo mode creates a (fake) calendar event and says so.
   await page.getByRole("button", { name: "Schedule Meeting" }).click();
   dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Google Meet / video link").fill("https://meet.google.com/abc-defg-hij");
-  await dialog.getByRole("button", { name: "Log meeting" }).click();
-  await expect(page.getByText("No meetings yet.")).toHaveCount(0);
+  await expect(dialog.getByText(/demo mode/i).first()).toBeVisible();
+  await dialog.getByRole("button", { name: "Schedule meeting" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText("Meeting scheduled").first()).toBeVisible();
+  await expect(page.getByText(/no real calendar invitation was sent/i)).toBeVisible();
 
-  // 6. Change status to Meeting Completed.
-  await page.getByRole("button", { name: "Change Status" }).click();
-  dialog = page.getByRole("dialog");
-  await dialog.getByRole("combobox").click();
-  await page.getByRole("option", { name: "Meeting Completed", exact: true }).click();
-  await dialog.getByRole("button", { name: "Update status" }).click();
+  await changeStage(page, "Meeting Scheduled");
+  await changeStage(page, "Meeting Completed");
+  await changeStage(page, "Payment Pending");
 
-  // 7. Add a note.
-  await page.getByRole("button", { name: "Add Note" }).click();
-  dialog = page.getByRole("dialog");
-  await dialog.getByPlaceholder("What happened? What's next?").fill("Great call — sending proposal next.");
-  await dialog.getByRole("button", { name: "Add note" }).click();
-  await expect(page.getByText("Great call — sending proposal next.")).toBeVisible();
+  // 5. Won. Terminal, no reason needed.
+  await changeStage(page, "Won");
+  await expect(page.getByText("Stage changed: Payment Pending → Won")).toBeVisible();
 
-  // 8. Create a follow-up due today.
-  await page.getByRole("button", { name: "Add Follow-up" }).click();
-  dialog = page.getByRole("dialog");
-  await dialog.getByRole("combobox").click();
-  await page.getByRole("option", { name: SALESPERSON_NAME }).click();
-  await dialog.getByLabel("What needs to happen?").fill("Call to review the proposal.");
-  await dialog.getByRole("button", { name: "Create follow-up" }).click();
-
-  // 9. Verify it appears on the Follow-ups page (Today view).
-  await page.goto("/followups?view=today");
-  await expect(page.getByText("Call to review the proposal.")).toBeVisible();
-
-  // 10. Mark the follow-up completed.
-  const followupRow = page.getByText("Call to review the proposal.").locator("..").locator("..");
-  await followupRow.getByRole("button").first().click();
-  await expect(page.getByText("Call to review the proposal.")).toHaveCount(0);
-
-  // 11. Verify the full timeline on the lead page.
+  // 6. The whole story is on one timeline.
   await page.goto(leadUrl);
-  await expect(page.getByText("Lead created")).toBeVisible();
-  await expect(page.getByText("Assigned to salesperson")).toBeVisible();
-  await expect(page.getByText("Meeting scheduled")).toBeVisible();
-  await expect(page.getByText("Note added")).toBeVisible();
-  await expect(page.getByText("Follow-up created")).toBeVisible();
-  await expect(page.getByText("Follow-up completed")).toBeVisible();
+  for (const entry of ["Lead created", "Assigned to salesperson", "Call: Connected / Interested", "Follow-up created", "Meeting scheduled"]) {
+    await expect(page.getByText(entry).first()).toBeVisible();
+  }
 
-  // 12. Change lead to Converted.
-  await page.getByRole("button", { name: "Change Status" }).click();
-  dialog = page.getByRole("dialog");
-  await dialog.getByRole("combobox").click();
-  await page.getByRole("option", { name: "Converted", exact: true }).click();
-  await dialog.getByRole("button", { name: "Update status" }).click();
-
-  // 13. Dashboard reflects the change.
+  // 7. The owner's home reflects it: won this week is at least this deal.
   await page.goto("/");
-  await expect(page.getByText("Converted", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Summit Sales Group" })).toBeVisible();
+  await expect(page.getByText("Won this week")).toBeVisible();
+});
+
+test("marking a lead lost requires a reason and shows it on the lead", async ({ page }) => {
+  const stamp = Date.now();
+  await login(page, ADMIN_EMAIL);
+  await addLead(page, "Manish", `Lost${stamp}`, freshPhone(), `manish.${stamp}@example.com`);
+
+  await page.getByRole("button", { name: "Change Stage" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("combobox").first().click();
+  await page.getByRole("option", { name: "Lost", exact: true }).click();
+
+  // The reason field appears and blocks submitting until filled.
+  await expect(dialog.getByRole("button", { name: "Update stage" })).toBeDisabled();
+  await dialog.getByRole("combobox", { name: "Reason for losing this lead" }).click();
+  await page.getByRole("option", { name: "Price too high", exact: true }).click();
+  await dialog.getByRole("button", { name: "Update stage" }).click();
+  await expect(dialog).toBeHidden();
+
+  await expect(page.getByText("Lost: Price too high")).toBeVisible();
+  await expect(page.getByText("Reason: Price too high")).toBeVisible();
+});
+
+test("entering someone who is already an open lead reuses it instead of duplicating", async ({ page }) => {
+  const stamp = Date.now();
+  const phone = freshPhone();
+  await login(page, ADMIN_EMAIL);
+  await addLead(page, "Twice", `Entered${stamp}`, phone, `twice.${stamp}@example.com`);
+  const firstUrl = page.url();
+
+  // Same person, phone typed differently (with the country code and spaces).
+  await page.goto("/leads");
+  await page.getByRole("button", { name: "Add Lead" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("First name").fill("Twice");
+  await dialog.getByLabel("Phone", { exact: true }).fill(`+91 ${phone.slice(0, 5)} ${phone.slice(5)}`);
+  await dialog.getByRole("button", { name: "Create Lead" }).click();
+
+  await expect(page).toHaveURL(firstUrl);
+  await expect(page.getByText("New inquiry").first()).toBeVisible();
+});
+
+test("a phone number that isn't one is rejected with a clear message", async ({ page }) => {
+  await login(page, ADMIN_EMAIL);
+  await page.goto("/leads");
+  await page.getByRole("button", { name: "Add Lead" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("First name").fill("Bad");
+  await dialog.getByLabel("Phone", { exact: true }).fill("12345");
+  await dialog.getByRole("button", { name: "Create Lead" }).click();
+  await expect(page.getByText(/enter a valid phone number/i)).toBeVisible();
 });

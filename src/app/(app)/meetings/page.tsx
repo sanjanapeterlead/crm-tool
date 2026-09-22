@@ -1,20 +1,15 @@
-import { format } from "date-fns";
 import { Video, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { requireSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
-import { permissions } from "@/lib/permissions";
+import { permissions } from "@/lib/domain/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { MeetingStatusMenu } from "@/components/crm/leads/meeting-status-menu";
+import { MeetingSyncStatus } from "@/components/crm/leads/meeting-calendar-controls";
+import { MEETING_STATUS_VARIANT as STATUS_VARIANT } from "@/components/crm/leads/meetings-list";
+import { formatDateTime } from "@/lib/format";
 import type { Meeting, Lead, Profile } from "@/lib/types/domain";
-
-const STATUS_VARIANT: Record<Meeting["status"], string> = {
-  scheduled: "border-blue-600/30 bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400",
-  completed: "border-emerald-600/30 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",
-  cancelled: "border-muted-foreground/30 bg-muted text-muted-foreground",
-  no_show: "border-red-600/30 bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400",
-};
 
 export default async function MeetingsPage() {
   const session = await requireSession();
@@ -58,7 +53,7 @@ export default async function MeetingsPage() {
                     {meeting.lead.first_name} {meeting.lead.last_name}
                   </Link>
                   <div className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                    <span>{format(new Date(meeting.scheduled_start), "MMM d, yyyy · h:mm a")}</span>
+                    <span>{formatDateTime(meeting.scheduled_start, session.timezone)}</span>
                     <Badge variant="outline" className={STATUS_VARIANT[meeting.status]}>
                       {meeting.status.replace("_", " ")}
                     </Badge>
@@ -76,8 +71,16 @@ export default async function MeetingsPage() {
                       </a>
                     )}
                   </div>
+                  <div className="mt-1">
+                    <MeetingSyncStatus
+                      meetingId={meeting.id}
+                      provider={meeting.provider}
+                      syncError={meeting.sync_error}
+                      status={meeting.status}
+                    />
+                  </div>
                 </div>
-                <MeetingStatusMenu meetingId={meeting.id} leadId={meeting.lead.id} status={meeting.status} />
+                <MeetingStatusMenu meetingId={meeting.id} status={meeting.status} />
               </CardContent>
             </Card>
           ))}

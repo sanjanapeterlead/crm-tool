@@ -1,6 +1,8 @@
 import { requireSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
-import { listLeads } from "@/lib/services/leads";
+import { listLeads, type LeadDueFilter, type LeadStateFilter } from "@/lib/services/leads";
+import { permissions } from "@/lib/domain/permissions";
+import { listCampaigns } from "@/lib/services/meta";
 import { listLeadStatuses, listOrgMembers } from "@/lib/services/team";
 import { LEAD_SOURCES } from "@/lib/types/domain";
 import { LeadFilters } from "@/components/crm/leads/lead-filters";
@@ -17,15 +19,23 @@ export default async function LeadsPage({
   const session = await requireSession();
   const supabase = await createClient();
 
-  const [statuses, members, { leads, total, page, pageSize }] = await Promise.all([
+  const [statuses, members, campaigns, { leads, total, page, pageSize }] = await Promise.all([
     listLeadStatuses(supabase, session.orgId),
     listOrgMembers(supabase, session),
+    listCampaigns(supabase, session.orgId),
     listLeads(supabase, session, {
       search: params.search,
       statusId: params.status,
       assignedTo: params.assigned,
       source: params.source,
-      page: params.page ? Number(params.page) : 1,
+      campaignId: params.campaign,
+      priority: params.priority,
+      state: (["open", "won", "lost"] as const).find((s) => s === params.state) as LeadStateFilter | undefined,
+      due: (["overdue", "today"] as const).find((d) => d === params.due) as LeadDueFilter | undefined,
+      uncontacted: params.uncontacted === "1",
+      createdFrom: params.from,
+      createdTo: params.to,
+      page: params.page && Number(params.page) > 0 ? Math.floor(Number(params.page)) : 1,
     }),
   ]);
 
@@ -38,12 +48,17 @@ export default async function LeadsPage({
           <h1 className="text-xl font-semibold tracking-tight">Leads</h1>
           <p className="text-sm text-muted-foreground">Every lead in your pipeline, in one place.</p>
         </div>
-        <AddLeadDialog members={memberProfiles} />
+        <AddLeadDialog members={memberProfiles} canAssign={permissions.canViewAllLeads(session.role)} />
       </div>
 
-      <LeadFilters statuses={statuses} members={memberProfiles} sources={[...LEAD_SOURCES]} />
+      <LeadFilters
+        statuses={statuses}
+        members={memberProfiles}
+        sources={[...LEAD_SOURCES]}
+        campaigns={campaigns}
+      />
 
-      <LeadsTable leads={leads as unknown as LeadRow[]} />
+      <LeadsTable leads={leads as unknown as LeadRow[]} timezone={session.timezone} />
 
       <Pagination page={page} pageSize={pageSize} total={total} basePath="/leads" searchParams={params} />
     </div>

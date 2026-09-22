@@ -16,7 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </Link>
         </div>
         <div className="flex-1 overflow-y-auto">
-          <SidebarNav />
+          <SidebarNav role={session.role} />
         </div>
         <div className="border-t p-2">
           <UserMenu name={session.profile.full_name ?? ""} email={session.user.email} role={session.role} />
@@ -25,7 +25,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex min-h-screen flex-1 flex-col">
         <header className="flex h-14 items-center justify-between border-b px-4 md:hidden">
           <div className="flex items-center gap-2">
-            <MobileNav orgName={session.orgName} />
+            <MobileNav orgName={session.orgName} role={session.role} />
             <Link href="/" className="font-semibold tracking-tight">
               {session.orgName}
             </Link>

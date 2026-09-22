@@ -1,7 +1,8 @@
 // Hand-authored domain types layered on top of the generated database types.
 // Keep these aligned with supabase/migrations/0001_init_schema.sql.
 
-export type OrgRole = "admin" | "manager" | "salesperson";
+export type { OrgRole } from "@/lib/domain/permissions";
+import type { OrgRole } from "@/lib/domain/permissions";
 
 export interface Profile {
   id: string;
@@ -15,6 +16,7 @@ export interface OrgMember {
   org_id: string;
   user_id: string;
   role: OrgRole;
+  is_active: boolean;
   profile?: Profile;
 }
 
@@ -40,8 +42,55 @@ export interface Lead {
   status_id: string;
   assigned_to: string | null;
   created_by: string | null;
+  /** Set to 'meta' for leads ingested from Meta Lead Ads; null when created by hand. */
+  external_provider: string | null;
+  /** The provider's own id for this lead (Meta's `leadgen_id`) — the dedupe key. */
+  external_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** Which ad produced a lead. One row per lead imported from Meta. */
+export interface MetaLeadAttribution {
+  lead_id: string;
+  org_id: string;
+  leadgen_id: string;
+  page_id: string | null;
+  form_id: string | null;
+  form_name: string | null;
+  campaign_id: string | null;
+  campaign_name: string | null;
+  adset_id: string | null;
+  adset_name: string | null;
+  ad_id: string | null;
+  ad_name: string | null;
+  platform: string | null;
+  is_organic: boolean;
+  field_data: Array<{ name: string; values: string[] }>;
+  meta_created_time: string | null;
+  created_at: string;
+}
+
+export type MetaWebhookEventStatus =
+  | "received"
+  | "processed"
+  | "duplicate"
+  | "ignored"
+  | "failed";
+
+export interface MetaWebhookEvent {
+  id: string;
+  org_id: string | null;
+  page_id: string | null;
+  form_id: string | null;
+  leadgen_id: string | null;
+  signature_valid: boolean;
+  status: MetaWebhookEventStatus;
+  error: string | null;
+  lead_id: string | null;
+  attempts: number;
+  received_at: string;
+  processed_at: string | null;
 }
 
 export interface LeadWithRelations extends Lead {
@@ -71,7 +120,13 @@ export interface Meeting {
   salesperson_id: string | null;
   scheduled_start: string;
   scheduled_end: string | null;
-  meeting_type: string;
+  /** Who created the calendar event: `manual` (pasted link), `calendly`, `google` or `mock` (demo). */
+  provider: string;
+  title: string | null;
+  external_event_id: string | null;
+  external_event_url: string | null;
+  /** Set when creating/updating the calendar event failed; the meeting is saved regardless. */
+  sync_error: string | null;
   external_booking_url: string | null;
   meeting_url: string | null;
   status: MeetingStatus;
@@ -102,11 +157,18 @@ export interface Followup {
 
 export const ACTIVITY_TYPES = [
   "lead_created",
+  "lead_imported_from_ads",
   "lead_updated",
+  "lead_inquiry_received",
+  "call_logged",
+  "whatsapp_sent",
+  "whatsapp_received",
+  "whatsapp_failed",
   "lead_assigned",
   "status_changed",
   "note_created",
   "meeting_scheduled",
+  "meeting_rescheduled",
   "meeting_completed",
   "meeting_cancelled",
   "followup_created",

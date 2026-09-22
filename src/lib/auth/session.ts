@@ -1,6 +1,7 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { DEFAULT_TIMEZONE } from "@/lib/domain/due";
 import type { OrgRole, Profile } from "@/lib/types/domain";
 
 export interface SessionContext {
@@ -8,6 +9,8 @@ export interface SessionContext {
   profile: Profile;
   orgId: string;
   orgName: string;
+  /** The org's IANA timezone: every absolute time on screen, and "today", is measured in it. */
+  timezone: string;
   role: OrgRole;
 }
 
@@ -26,7 +29,7 @@ export async function getSessionContext(): Promise<SessionContext | null> {
 
   const { data: membership } = await supabase
     .from("organization_members")
-    .select("org_id, role, profiles:user_id(id, email, full_name, avatar_url), organizations:org_id(name)")
+    .select("org_id, role, profiles:user_id(id, email, full_name, avatar_url), organizations:org_id(name, timezone)")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -45,7 +48,8 @@ export async function getSessionContext(): Promise<SessionContext | null> {
     user: { id: user.id, email: user.email ?? "" },
     profile: profile as Profile,
     orgId: membership.org_id as string,
-    orgName: (organization as { name: string }).name,
+    orgName: (organization as { name: string; timezone?: string }).name,
+    timezone: (organization as { timezone?: string }).timezone ?? DEFAULT_TIMEZONE,
     role: membership.role as OrgRole,
   };
 }

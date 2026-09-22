@@ -1,7 +1,7 @@
 import { requireSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { listLeadStatuses } from "@/lib/services/team";
-import { permissions } from "@/lib/permissions";
+import { permissions } from "@/lib/domain/permissions";
 import { PipelineBoard } from "@/components/crm/pipeline/pipeline-board";
 import type { PipelineLead } from "@/components/crm/pipeline/lead-card";
 

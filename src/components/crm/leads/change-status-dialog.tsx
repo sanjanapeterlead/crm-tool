@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { LostReasonField } from "@/components/crm/leads/lost-reason-field";
 import { changeLeadStatusAction } from "@/app/(app)/actions";
 import type { LeadStatus } from "@/lib/types/domain";
 
@@ -35,18 +36,22 @@ export function ChangeStatusDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(currentStatusId);
+  const [lostReason, setLostReason] = useState("");
   const [pending, setPending] = useState(false);
   const router = useRouter();
 
+  const target = statuses.find((s) => s.id === value);
+  const needsReason = Boolean(target?.is_lost) && value !== currentStatusId;
+
   async function handleChange() {
     setPending(true);
-    const result = await changeLeadStatusAction(leadId, value);
+    const result = await changeLeadStatusAction(leadId, value, needsReason ? lostReason.trim() : undefined);
     setPending(false);
     if (!result.ok) {
       toast.error(result.error);
       return;
     }
-    toast.success("Status updated");
+    toast.success(target?.is_won ? "Marked as won" : "Stage updated");
     setOpen(false);
     router.refresh();
   }
@@ -56,11 +61,11 @@ export function ChangeStatusDialog({
       <DialogTrigger render={trigger} />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Change status</DialogTitle>
+          <DialogTitle>Change stage</DialogTitle>
         </DialogHeader>
         <Select value={value} onValueChange={(v) => v && setValue(v)}>
-          <SelectTrigger className="w-full">
-            <SelectValue>{(v: string) => statuses.find((s) => s.id === v)?.label ?? "Select status"}</SelectValue>
+          <SelectTrigger className="w-full" aria-label="New stage">
+            <SelectValue>{(v: string) => statuses.find((s) => s.id === v)?.label ?? "Select stage"}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {statuses.map((s) => (
@@ -70,9 +75,13 @@ export function ChangeStatusDialog({
             ))}
           </SelectContent>
         </Select>
+        {needsReason && <LostReasonField value={lostReason} onChange={setLostReason} />}
         <DialogFooter>
-          <Button onClick={handleChange} disabled={pending || value === currentStatusId}>
-            {pending ? "Updating…" : "Update status"}
+          <Button
+            onClick={handleChange}
+            disabled={pending || value === currentStatusId || (needsReason && lostReason.trim() === "")}
+          >
+            {pending ? "Updating…" : "Update stage"}
           </Button>
         </DialogFooter>
       </DialogContent>

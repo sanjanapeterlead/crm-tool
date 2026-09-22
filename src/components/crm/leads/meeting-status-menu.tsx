@@ -23,11 +23,9 @@ const OPTIONS: { value: MeetingStatus; label: string }[] = [
 
 export function MeetingStatusMenu({
   meetingId,
-  leadId,
   status,
 }: {
   meetingId: string;
-  leadId: string;
   status: MeetingStatus;
 }) {
   const router = useRouter();
@@ -36,7 +34,7 @@ export function MeetingStatusMenu({
   function handleSelect(next: MeetingStatus) {
     if (next === status) return;
     startTransition(async () => {
-      const result = await updateMeetingStatusAction(meetingId, leadId, next);
+      const result = await updateMeetingStatusAction(meetingId, next);
       if (!result.ok) {
         toast.error(result.error);
         return;
